@@ -1,0 +1,297 @@
+# Check whether we can make use of plasma-DNA signal coming from protection of nucleosomes
+
+#external programs (should be in path):
+
+# .) samtools v0.1.18(r982:295); samtools is also called from within Python scripts using subprocess.call
+# .) BWA (0.7.4-r385)
+# .) R (2.14.1)
+# .) Picard (picard-tools-1.128)
+# .) Java (Java 7)
+# .) Python (2.7.3)
+# .) zcat/wget
+
+#additional data needed
+# .) indexed hg19 genome (replace this: ref/bwa_index/hg19 with your indexed hg19 genome)
+# .) sequencing data of controls and breast tumor cases (www.ebi.ac.uk/ega; EGAS00001001754)
+
+
+
+alignments: output/alignments/Merged_Male_Controls_rmdup.bam output/trimmed_reads/Merged_Male_Controls_rmdup_trimmed.bam output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam \
+            output/trimmed_reads/B7_1_rmdup_trimmed.bam output/trimmed_reads/B13_1_rmdup_trimmed.bam
+
+tss_plots: output/TSS_coverage/Normalized/MergedControls_Plasma_Top1000_tss.txt output/TSS_coverage/Normalized/MergedControls_Plasma_Bottom1000_tss.txt \
+           output/TSS_coverage/Normalized/MergedControls_Plasma_Top100_tss.txt output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_over8_tss.txt \
+           output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_between1_8_tss.txt output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_between0.1_1_tss.txt \
+           output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_under0.1_tss.txt
+
+
+
+
+# Download ENCODE Nucleosome tracks
+ref/wgEncodeSydhNsome/wgEncodeSydhNsomeGm12878Sig.bigWig:
+	wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeSydhNsome/wgEncodeSydhNsomeGm12878Sig.bigWig
+	mv wgEncodeSydhNsomeGm12878Sig.bigWig ./ref/wgEncodeSydhNsomeGm12878Sig.bigWig
+
+ref/wgEncodeSydhNsome/wgEncodeSydhNsomeK562Sig.bigWig:
+	wget http://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeSydhNsome/wgEncodeSydhNsomeK562Sig.bigWig
+	mv wgEncodeSydhNsomeK562Sig.bigWig ./ref/wgEncodeSydhNsomeK562Sig.bigWig
+
+
+
+####################################################################################################################################
+# 1
+# Align Plasma Seq samples
+#  -) (trim reads to 60bp)
+#  -) align to hg19 (bwa mem)
+#  -) sample-level duplicate removal using samtools
+#  -) merge individual samples using samtools
+
+#Pool of male controls
+output/alignments/Merged_Male_Controls_rmdup.bam:
+	for i in ./data/MaleControls/*.fastq.gz;do base=`basename $$i`;echo "working on $$i" ;sample=`echo $$base | sed s/\.fastq\.gz//`;bwa mem -t 10 ref/bwa_index/hg19 $$i > intermediate/MaleControls/$$sample.sam; \
+	~/Downloads/jre1.7.0/bin/java -Xmx4g -Djava.io.tmpdir=/tmp \
+	-jar ~/Software/SNP_calling/picard-tools-1.128/picard.jar SortSam \
+	SO=coordinate INPUT=intermediate/MaleControls/$$sample.sam OUTPUT=intermediate/MaleControls/$$sample.bam \
+	VALIDATION_STRINGENCY=LENIENT CREATE_INDEX=true; rm intermediate/MaleControls/$$sample.sam; \
+	samtools rmdup -s intermediate/MaleControls/$$sample.bam intermediate/MaleControls/$$sample.rmdup.bam;rm intermediate/MaleControls/$$sample.bam;rm intermediate/MaleControls/$$sample.bai;samtools index intermediate/MaleControls/$$sample.rmdup.bam; done
+	samtools merge -f output/alignments/Merged_Male_Controls_rmdup.bam intermediate/MaleControls/*.rmdup.bam; samtools index output/alignments/Merged_Male_Controls_rmdup.bam
+
+output/trimmed_reads/Merged_Male_Controls_rmdup_trimmed.bam:
+	for i in ./data/MaleControls/*.fastq.gz;do base=`basename $$i`;echo "working on $$i" ;sample=`echo $$base | sed s/\.fastq\.gz//`; \
+    zcat $$i | ./scripts/fastx_trimmer -Q33 -f 53 -l 113 -z -o ./intermediate/trimmed/MergedMale/$${base}.trimmed.fastq.gz; \
+    bwa mem -t 10 ref/bwa_index/hg19 ./intermediate/trimmed/MergedMale/$${base}.trimmed.fastq.gz > intermediate/trimmed/MergedMale/$$sample.sam; \
+    rm ./intermediate/trimmed/MergedMale/$${base}.trimmed.fastq.gz; \
+	java -Xmx4g -Djava.io.tmpdir=/tmp \
+	-jar ~/Software/SNP_calling/picard-tools-1.128/picard.jar SortSam \
+	SO=coordinate INPUT=intermediate/trimmed/MergedMale/$$sample.sam OUTPUT=intermediate/trimmed/MergedMale/$$sample.bam \
+	VALIDATION_STRINGENCY=LENIENT CREATE_INDEX=true; rm intermediate/trimmed/MergedMale/$$sample.sam; \
+	samtools rmdup -s intermediate/trimmed/MergedMale/$$sample.bam intermediate/trimmed/MergedMale/$$sample.rmdup.bam;rm intermediate/trimmed/MergedMale/$$sample.bam;rm intermediate/trimmed/MergedMale/$$sample.bai;samtools index intermediate/trimmed/MergedMale/$$sample.rmdup.bam; done
+	samtools merge -f output/trimmed_reads/Merged_Male_Controls_rmdup_trimmed.bam intermediate/trimmed/MergedMale/*.rmdup.bam; samtools index output/trimmed_reads/Merged_Male_Controls_rmdup_trimmed.bam
+
+
+#Pool of female controls
+output/alignments/Merged_Female_Controls_rmdup.bam:
+	for i in ./data/FemaleControls/*.fastq.gz;do base=`basename $$i`;echo "working on $$i" ;sample=`echo $$base | sed s/\.fastq\.gz//`;bwa mem -t 10 ref/bwa_index/hg19 $$i > intermediate/FemaleControls/$$sample.sam; \
+	java -Xmx4g -Djava.io.tmpdir=/tmp \
+	-jar ~/Software/SNP_calling/picard-tools-1.128/picard.jar SortSam \
+	SO=coordinate INPUT=intermediate/FemaleControls/$$sample.sam OUTPUT=intermediate/FemaleControls/$$sample.bam \
+	VALIDATION_STRINGENCY=LENIENT CREATE_INDEX=true; rm intermediate/FemaleControls/$$sample.sam; \
+	samtools rmdup -s intermediate/FemaleControls/$$sample.bam intermediate/FemaleControls/$$sample.rmdup.bam;rm intermediate/FemaleControls/$$sample.bam;rm intermediate/FemaleControls/$$sample.bai;samtools index intermediate/FemaleControls/$$sample.rmdup.bam; done
+	samtools merge -f output/alignments/Merged_Female_Controls_rmdup.bam intermediate/FemaleControls/*.rmdup.bam; samtools index output/alignments/Merged_Female_Controls_rmdup.bam
+
+output/trimmed_reads/Merged_Female_Controls_rmdup_trimmed.bam:
+	for i in ./data/FemaleControls/*.fastq.gz;do base=`basename $$i`;echo "working on $$i" ;sample=`echo $$base | sed s/\.fastq\.gz//`; \
+    zcat $$i | ./scripts/fastx_trimmer -Q33 -f 53 -l 113 -m 113 -z -o ./intermediate/trimmed/MergedFemale/$${base}.trimmed.fastq.gz; \
+    bwa mem -t 10 ref/bwa_index/hg19 ./intermediate/trimmed/MergedFemale/$${base}.trimmed.fastq.gz > intermediate/trimmed/MergedFemale/$$sample.sam; \
+    rm ./intermediate/trimmed/MergedFemale/$${base}.trimmed.fastq.gz; \
+	java -Xmx4g -Djava.io.tmpdir=/tmp \
+	-jar ~/Software/SNP_calling/picard-tools-1.128/picard.jar SortSam \
+	SO=coordinate INPUT=intermediate/trimmed/MergedFemale/$$sample.sam OUTPUT=intermediate/trimmed/MergedFemale/$$sample.bam \
+	VALIDATION_STRINGENCY=LENIENT CREATE_INDEX=true; rm intermediate/trimmed/MergedFemale/$$sample.sam; \
+	samtools rmdup -s intermediate/trimmed/MergedFemale/$$sample.bam intermediate/trimmed/MergedFemale/$$sample.rmdup.bam;rm intermediate/trimmed/MergedFemale/$$sample.bam;rm intermediate/trimmed/MergedFemale/$$sample.bai;samtools index intermediate/trimmed/MergedFemale/$$sample.rmdup.bam; done
+	samtools merge -f output/trimmed_reads/Merged_Female_Controls_rmdup_trimmed.bam intermediate/trimmed/MergedFemale/*.rmdup.bam; samtools index output/trimmed_reads/Merged_Female_Controls_rmdup_trimmed.bam
+
+output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam: output/trimmed_reads/Merged_Male_Controls_rmdup_trimmed.bam output/trimmed_reads/Merged_Female_Controls_rmdup_trimmed.bam
+	samtools merge -f output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam output/trimmed_reads/Merged_Female_Controls_rmdup_trimmed.bam output/trimmed_reads/Merged_Male_Controls_rmdup_trimmed.bam
+	samtools index output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam
+
+
+#B7_1 high coverage data
+output/trimmed_reads/B7_1_rmdup_trimmed.bam:
+	zcat data/B7_1_HighCov/B7_1_R1.fastq.gz | ./scripts/fastx_trimmer -Q33 -f 53 -l 113 -z -o ./intermediate/trimmed/MergedMale/B7_1.trimmed.fastq.gz
+	bwa mem -t 10 ref/bwa_index/hg19 ./intermediate/trimmed/MergedMale/B7_1.trimmed.fastq.gz > intermediate/trimmed/MergedMale/B7_1.sam
+	rm ./intermediate/trimmed/MergedMale/B7_1.trimmed.fastq.gz
+	java -Xmx4g -Djava.io.tmpdir=/tmp \
+        -jar ~/Software/SNP_calling/picard-tools-1.128/picard.jar SortSam \
+        SO=coordinate INPUT=intermediate/trimmed/MergedMale/B7_1.sam OUTPUT=intermediate/trimmed/MergedMale/B7_1.bam \
+        VALIDATION_STRINGENCY=LENIENT CREATE_INDEX=true
+	rm intermediate/trimmed/MergedMale/B7_1.sam
+	samtools rmdup -s intermediate/trimmed/MergedMale/B7_1.bam output/trimmed_reads/B7_1_rmdup_trimmed.bam
+	rm intermediate/trimmed/MergedMale/B7_1.bam
+	rm intermediate/trimmed/MergedMale/B7_1.bai
+	samtools index output/trimmed_reads/B7_1_rmdup_trimmed.bam
+
+#B13_1 high coverage data
+output/trimmed_reads/B13_1_rmdup_trimmed.bam:
+	zcat data/B13_1_HighCov/B13_1_R1.fastq.gz | ./scripts/fastx_trimmer -Q33 -f 53 -l 113 -z -o ./intermediate/trimmed/MergedMale/B13_1.trimmed.fastq.gz
+	bwa mem -t 10 ref/bwa_index/hg19 ./intermediate/trimmed/MergedMale/B13_1.trimmed.fastq.gz > intermediate/trimmed/MergedMale/B13_1.sam
+	rm ./intermediate/trimmed/MergedMale/B13_1.trimmed.fastq.gz
+	java -Xmx4g -Djava.io.tmpdir=/tmp \
+        -jar ~/Software/SNP_calling/picard-tools-1.128/picard.jar SortSam \
+        SO=coordinate INPUT=intermediate/trimmed/MergedMale/B13_1.sam OUTPUT=intermediate/trimmed/MergedMale/B13_1.bam \
+        VALIDATION_STRINGENCY=LENIENT CREATE_INDEX=true
+	rm intermediate/trimmed/MergedMale/B13_1.sam
+	samtools rmdup -s intermediate/trimmed/MergedMale/B13_1.bam output/trimmed_reads/B13_1_rmdup_trimmed.bam
+	rm intermediate/trimmed/MergedMale/B13_1.bam
+	rm intermediate/trimmed/MergedMale/B13_1.bai
+	samtools index output/trimmed_reads/B13_1_rmdup_trimmed.bam
+
+####################################################################################################################################
+# 3
+# Analyze mean coverage around Transcription start sites (TSS)
+#   -) Top1000 genes from cfRNA Expression Microarray
+#   -) Bottom1000 genes from cfRNA Expression Microarray
+#   -) Top100 genes from cfRNA Expression Microarray
+#   -) Varying FPKM levels from Plasma RNA-Seq (Koh et al.)
+
+
+output/TSS_coverage/Normalized/MergedControls_Plasma_Top1000_tss.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -gl ref/Plasma-RNASeq/Top1000_NMonly.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam -t 10 > output/TSS_coverage/Normalized/MergedControls_Plasma_Top1000_tss.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/Normalized/MergedControls_Plasma_Top1000_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/Normalized/MergedControls_Plasma_Top1000_tss.txt
+output/TSS_coverage/Normalized/MergedControls_Plasma_Bottom1000_tss.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -gl ref/Plasma-RNASeq/Bottom1000_NMonly.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam -t 10 > output/TSS_coverage/Normalized/MergedControls_Plasma_Bottom1000_tss.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/Normalized/MergedControls_Plasma_Bottom1000_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/Normalized/MergedControls_Plasma_Bottom1000_tss.txt
+output/TSS_coverage/Normalized/MergedControls_Plasma_Top100_tss.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -gl ref/Plasma-RNASeq/Top100_NMonly.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam -t 10 > output/TSS_coverage/Normalized/MergedControls_Plasma_Top100_tss.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/Normalized/MergedControls_Plasma_Top100_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/Normalized/MergedControls_Plasma_Top100_tss.txt
+output/TSS_coverage/Normalized/MergedControls_Top_vs_Bottom_figure.png: output/TSS_coverage/Normalized/MergedControls_Plasma_Top100_tss.txt output/TSS_coverage/Normalized/MergedControls_Plasma_Bottom1000_tss.txt output/TSS_coverage/Normalized/MergedControls_Plasma_Top1000_tss.txt
+	R --no-save < output/TSS_coverage/Normalized/plot_normalized.R
+
+#FPKM over 8
+output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_over8_tss.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -gl ref/Plasma-RNASeq/FPKM/FPKM_over8.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam -t 10 > output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_over8_tss.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_over8_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_over8_tss.txt
+#FPKM between 1 and 8
+output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_between1_8_tss.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -gl ref/Plasma-RNASeq/FPKM/FPKM_1_to_8.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam -t 10 > output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_between1_8_tss.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_between1_8_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_between1_8_tss.txt
+#FPKM between 0.1 and 1
+output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_between0.1_1_tss.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -gl ref/Plasma-RNASeq/FPKM/FPKM_0.1_to_1.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam -t 10 > output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_between0.1_1_tss.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_between0.1_1_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_between0.1_1_tss.txt
+#FPKM lower 0.1
+output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_under0.1_tss.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -gl ref/Plasma-RNASeq/FPKM/FPKM_under0.1.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam -t 10 > output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_under0.1_tss.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_under0.1_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_under0.1_tss.txt
+output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM.png:
+	R --no-save < output/TSS_coverage/FPKM_Plasma_RNASeq/plot_FPKM.R
+
+####################################################################################################################################
+#
+# Calculate normalized TSS profiles for housekeeping genes and supposedly unexpressed genes
+# 	
+
+#Household Genes
+output/TSS_coverage/Housekeeping/MergedControls_FANTOM5_unexpressed_tss.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -tmp ./intermediate/Tssnormalized -gl ref/FANTOM5/Fantom5_all_lower0.1.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam -t 10 > output/TSS_coverage/Housekeeping/MergedControls_FANTOM5_unexpressed_tss.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/Housekeeping/MergedControls_FANTOM5_unexpressed_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/Housekeeping/MergedControls_FANTOM5_unexpressed_tss.txt
+output/TSS_coverage/Housekeeping/MergedControls_Housekeeping_Eisenberg_tss.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -gl ref/Housekeeping/HK_gene_names.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam -t 10 > output/TSS_coverage/Housekeeping/MergedControls_Housekeeping_Eisenberg_tss.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/Housekeeping/MergedControls_Housekeeping_Eisenberg_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/Housekeeping/MergedControls_Housekeeping_Eisenberg_tss.txt
+
+output/TSS_coverage/Housekeeping/B7_1_FANTOM5_unexpressed_tss.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -tmp ./intermediate/Tssnormalized -gl ref/FANTOM5/Fantom5_all_lower0.1.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/B7_1_rmdup_trimmed.bam -t 10 > output/TSS_coverage/Housekeeping/B7_1_FANTOM5_unexpressed_tss.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/Housekeeping/B7_1_FANTOM5_unexpressed_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/Housekeeping/B7_1_FANTOM5_unexpressed_tss.txt
+output/TSS_coverage/Housekeeping/B7_1_Housekeeping_Eisenberg_tss.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -gl ref/Housekeeping/HK_gene_names.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/B7_1_rmdup_trimmed.bam -t 10 > output/TSS_coverage/Housekeeping/B7_1_Housekeeping_Eisenberg_tss.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/Housekeeping/B7_1_Housekeeping_Eisenberg_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/Housekeeping/B7_1_Housekeeping_Eisenberg_tss.txt
+
+output/TSS_coverage/Housekeeping/B13_1_FANTOM5_unexpressed_tss.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -tmp ./intermediate/Tssnormalized -gl ref/FANTOM5/Fantom5_all_lower0.1.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/B13_1_rmdup_trimmed.bam -t 10 > output/TSS_coverage/Housekeeping/B13_1_FANTOM5_unexpressed_tss.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/Housekeeping/B13_1_FANTOM5_unexpressed_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/Housekeeping/B13_1_FANTOM5_unexpressed_tss.txt
+output/TSS_coverage/Housekeeping/B13_1_Housekeeping_Eisenberg_tss.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -gl ref/Housekeeping/HK_gene_names.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/B13_1_rmdup_trimmed.bam -t 10 > output/TSS_coverage/Housekeeping/B13_1_Housekeeping_Eisenberg_tss.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/Housekeeping/B13_1_Housekeeping_Eisenberg_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/Housekeeping/B13_1_Housekeeping_Eisenberg_tss.txt
+
+#calculate normalized plots of single genes
+output/TSS_coverage/Single_genes/MergedControls_ERBB2.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -gl ref/ERBB2.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam > output/TSS_coverage/Single_genes/MergedControls_ERBB2.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/Single_genes/MergedControls_ERBB2.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/Single_genes/MergedControls_ERBB2.txt
+output/TSS_coverage/Single_genes/B13_1_ERBB2.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	./scripts/analyze_TSS_coverage.py -norm -gl ref/ERBB2.txt -rg ref/refSeq_extended_names_strand.bed -m 0 -b output/trimmed_reads/B13_1_rmdup_trimmed.bam > output/TSS_coverage/Single_genes/B13_1_ERBB2.txt
+	cat scripts/create_TSS_plot_extended.R | R --slave --args output/TSS_coverage/Single_genes/B13_1_ERBB2.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/Single_genes/B13_1_ERBB2.txt
+
+#calculate unnormalized plots of single genes for merged controls
+output/TSS_coverage/Single_genes/MergedControls_NCL.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	samtools depth -r chr2:232319205-232339205 output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam > output/TSS_coverage/Single_genes/MergedControls_NCL.txt
+output/TSS_coverage/Single_genes/MergedControls_GABRR3.txt: ./scripts/analyze_TSS_coverage.py ref/refSeq_extended_names_strand.bed
+	samtools depth -r chr3:97744148-97764148 output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam > output/TSS_coverage/Single_genes/MergedControls_GABRR3.txt
+
+
+####################################################################################################################################
+#
+# Check TSS differences
+#
+./output/PredictActiveGenes_LOG2_norm/MergedControls/TSS_difference/different_tss.txt:
+	./output/PredictActiveGenes_LOG2_norm/MergedControls/TSS_difference/check_for_TSS.py > ./output/PredictActiveGenes_LOG2_norm/MergedControls/TSS_difference/different_tss.txt
+
+####################################################################################################################################
+#  Try to predict whether single genes are expressed by analysis of
+#    1) Mean Coverage +/- 1000bp around Transcription start site
+#    2) Coverage in smaller region around TSS (-150;+50); corrected by mean coverage of +/-1000bp around TSS
+# normalized by LOG2-ratios
+
+#Merged Controls
+output/PredictActiveGenes_LOG2_norm/MergedControls/MergedControls_TSSCoverage_Broad_PlasmaRNASeq_NMonly_NormLog2.txt:
+	./scripts/analyze_all_genes_by_TSS_coverage_norm_LOG2.py -rg ./ref/refSeq_extended_names_strand.bed -b ./output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam \
+    -t 10 -gl ./ref/Plasma-RNASeq/AllGenes_NMonly.txt -norm -norm-file ./data/MergedControls_Random/MergedControls_Random.segments \
+    > output/PredictActiveGenes_LOG2_norm/MergedControls/MergedControls_TSSCoverage_Broad_PlasmaRNASeq_NMonly_NormLog2.txt
+output/PredictActiveGenes_LOG2_norm/MergedControls/MergedControls_TSSCoverage_Small_PlasmaRNASeq_NMonly_NormLog2.txt:
+	./scripts/analyze_all_genes_by_TSS_coverage_norm_LOG2.py -s 150 -e 50 -rg ./ref/refSeq_extended_names_strand.bed -b ./output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam \
+    -t 10 -gl ./ref/Plasma-RNASeq/AllGenes_NMonly.txt -norm -norm-file ./data/MergedControls_Random/MergedControls_Random.segments \
+    > output/PredictActiveGenes_LOG2_norm/MergedControls/MergedControls_TSSCoverage_Small_PlasmaRNASeq_NMonly_NormLog2.txt
+prediction_merged_controls:
+	cd output/PredictActiveGenes_LOG2_norm/B7_1/SVM/;R --no-save < prediction_svm_Housekeeping.R
+
+output/PredictActiveGenes_LOG2_norm/B7_1/B7_TSSCoverage_Broad_PlasmaRNASeq_NMonly_NormLog2.txt:
+	./scripts/analyze_all_genes_by_TSS_coverage_norm_LOG2.py -rg ./ref/refSeq_extended_names_strand.bed -b ./output/trimmed_reads/B7_1_rmdup_trimmed.bam \
+    -t 10 -gl ./ref/Plasma-RNASeq/AllGenes_NMonly.txt -norm -norm-file ./data/B7_1_PlasmaSeq/B7_1_R1_L1/B7_1_R1_L1.segments \
+    > output/PredictActiveGenes_LOG2_norm/B7_1/B7_TSSCoverage_Broad_PlasmaRNASeq_NMonly_NormLog2.txt
+output/PredictActiveGenes_LOG2_norm/B7_1/B7_TSSCoverage_Small_PlasmaRNASeq_NMonly_NormLog2.txt:
+	./scripts/analyze_all_genes_by_TSS_coverage_norm_LOG2.py -s 150 -e 50 -rg ./ref/refSeq_extended_names_strand.bed -b ./output/trimmed_reads/B7_1_rmdup_trimmed.bam \
+    -t 10 -gl ./ref/Plasma-RNASeq/AllGenes_NMonly.txt -norm -norm-file ./data/B7_1_PlasmaSeq/B7_1_R1_L1/B7_1_R1_L1.segments \
+    > output/PredictActiveGenes_LOG2_norm/B7_1/B7_TSSCoverage_Small_PlasmaRNASeq_NMonly_NormLog2.txt
+prediction_b7_1:
+	cd output/PredictActiveGenes_LOG2_norm/B7_1/SVM/;R --no-save < prediction_svm_Housekeeping.R
+
+output/PredictActiveGenes_LOG2_norm/B13_1/B13_TSSCoverage_Broad_PlasmaRNASeq_NMonly_NormLog2.txt:
+	./scripts/analyze_all_genes_by_TSS_coverage_norm_LOG2.py -rg ./ref/refSeq_extended_names_strand.bed -b ./output/trimmed_reads/B13_1_rmdup_trimmed.bam \
+    -t 10 -gl ./ref/Plasma-RNASeq/AllGenes_NMonly.txt -norm -norm-file ./data/B13_1_Plasma-Seq/B13_1_L1/B13_1_L1.segments \
+    > output/PredictActiveGenes_LOG2_norm/B13_1/B13_TSSCoverage_Broad_PlasmaRNASeq_NMonly_NormLog2.txt
+output/PredictActiveGenes_LOG2_norm/B13_1/B13_TSSCoverage_Small_PlasmaRNASeq_NMonly_NormLog2.txt:
+	./scripts/analyze_all_genes_by_TSS_coverage_norm_LOG2.py -s 150 -e 50 -rg ./ref/refSeq_extended_names_strand.bed -b ./output/trimmed_reads/B13_1_rmdup_trimmed.bam \
+    -t 10 -gl ./ref/Plasma-RNASeq/AllGenes_NMonly.txt -norm -norm-file ./data/B13_1_Plasma-Seq/B13_1_L1/B13_1_L1.segments \
+    > output/PredictActiveGenes_LOG2_norm/B13_1/B13_TSSCoverage_Small_PlasmaRNASeq_NMonly_NormLog2.txt
+prediction_b7_1:
+	cd output/PredictActiveGenes_LOG2_norm/B7_1/SVM/;R --no-save < prediction_svm_Housekeeping.R
+
+
+####################################################################################################################################
+#
+# Create wig file for ordered array at Gaffney site: Hg19:chr12:34,484,733-34,560,733 
+output/Gaffney_nucleosome_array/MergedControls_Gaffney_site.counts:
+	./scripts/single_region_wig_from_bam.py -chr chr12 -s 34484000 -e 34561000 -b output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam -w output/Gaffney_nucleosome_array/MergedControls_Gaffney_site.wig
+	./scripts/wiggleToCounts.py -w output/Gaffney_nucleosome_array/MergedControls_Gaffney_site.wig -o output/Gaffney_nucleosome_array/MergedControls_Gaffney_site.counts -s 34484733 -e 34560733
+output/Gaffney_nucleosome_array/B13_Gaffney_site.counts:
+	./scripts/single_region_wig_from_bam.py -chr chr12 -s 34484000 -e 34561000 -b output/trimmed_reads/B13_1_rmdup_trimmed.bam -w output/Gaffney_nucleosome_array/B13_Gaffney_site.wig
+	./scripts/wiggleToCounts.py -w output/Gaffney_nucleosome_array/B13_Gaffney_site.wig -o output/Gaffney_nucleosome_array/B13_Gaffney_site.counts -s 34484733 -e 34560733
+output/Gaffney_nucleosome_array/B7_Gaffney_site.counts:
+	./scripts/single_region_wig_from_bam.py -chr chr12 -s 34484000 -e 34561000 -b output/trimmed_reads/B7_1_rmdup_trimmed.bam -w output/Gaffney_nucleosome_array/B7_Gaffney_site.wig
+	./scripts/wiggleToCounts.py -w output/Gaffney_nucleosome_array/B7_Gaffney_site.wig -o output/Gaffney_nucleosome_array/B7_Gaffney_site.counts -s 34484733 -e 34560733
+
+####################################################################################################################################
+#
+# Analyze Top 1000 vs Bottom 1000 expressed genes in BigWig files
+#
+output/TSS_coverage/BigWig/GM12878_Top1000_tss.txt:
+	./scripts/analyze_TSS_coverage_fromBigWig.py -t 10 -bw ref/wgEncodeSydhNsomeGm12878Sig.bigWig -gl ref/Plasma-RNASeq/Top1000_NMonly.txt -rg ref/refSeq_extended_names_strand.bed > output/TSS_coverage/BigWig/GM12878_Top1000_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/BigWig/GM12878_Top1000_tss.txt
+output/TSS_coverage/BigWig/GM12878_Bottom1000_tss.txt:
+	./scripts/analyze_TSS_coverage_fromBigWig.py -t 10 -bw ref/wgEncodeSydhNsomeGm12878Sig.bigWig -gl ref/Plasma-RNASeq/Bottom1000_NMonly.txt -rg ref/refSeq_extended_names_strand.bed > output/TSS_coverage/BigWig/GM12878_Bottom1000_tss.txt
+	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/BigWig/GM12878_Bottom1000_tss.txt
+
