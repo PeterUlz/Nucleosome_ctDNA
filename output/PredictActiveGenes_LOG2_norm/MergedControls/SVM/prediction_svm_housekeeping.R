@@ -1195,6 +1195,8 @@ w_cons<-wilcox.test(data$fpkm[which(data$Clustering=="Expressed")],data$fpkm[whi
 t_cons<-t.test(data$fpkm[which(data$Clustering=="Expressed")],data$fpkm[which(data$Clustering=="Unexpressed")])
 med_expressed_cons<-median(data$fpkm[which(data$Clustering=="Expressed")])
 med_unexpressed_cons<-median(data$fpkm[which(data$Clustering=="Unxpressed")])
+sd_expressed_cons<-sd(data$fpkm[which(data$Clustering=="Expressed")])
+sd_unexpressed_cons<-sd(data$fpkm[which(data$Clustering=="Unxpressed")])
 
 png("./Housekeeping/Consistency/MergedControls_Broad_vs_Small_TSS_coverage_FPKM_Boxplot.png")
 boxplot(data$fpkm[which(data$Clustering=="Expressed")],data$fpkm[which(data$Clustering=="Unexpressed")],ylim=c(0,100),names=c("Expressed","Unexpressed"),col=c("red","green"))
