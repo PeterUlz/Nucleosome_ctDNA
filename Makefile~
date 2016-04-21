@@ -127,7 +127,7 @@ output/trimmed_reads/B13_1_rmdup_trimmed.bam:
 	samtools index output/trimmed_reads/B13_1_rmdup_trimmed.bam
 
 ####################################################################################################################################
-# 3
+# 2
 # Analyze mean coverage around Transcription start sites (TSS)
 #   -) Top1000 genes from cfRNA Expression Microarray
 #   -) Bottom1000 genes from cfRNA Expression Microarray
@@ -175,7 +175,7 @@ output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM.png:
 
 ####################################################################################################################################
 #
-# Calculate normalized TSS profiles for housekeeping genes and supposedly unexpressed genes
+# 3 Calculate normalized TSS profiles for housekeeping genes and supposedly unexpressed genes
 # 	
 
 #Household Genes
@@ -225,15 +225,16 @@ output/TSS_coverage/Single_genes/MergedControls_GABRR3.txt: ./scripts/analyze_TS
 
 ####################################################################################################################################
 #
-# Check TSS differences
+# 4 Check TSS differences
 #
 ./output/PredictActiveGenes_LOG2_norm/MergedControls/TSS_difference/different_tss.txt:
 	./output/PredictActiveGenes_LOG2_norm/MergedControls/TSS_difference/check_for_TSS.py > ./output/PredictActiveGenes_LOG2_norm/MergedControls/TSS_difference/different_tss.txt
 
 ####################################################################################################################################
-#  Try to predict whether single genes are expressed by analysis of
+#  
+# 5 Try to predict whether single genes are expressed by analysis of
 #    1) Mean Coverage +/- 1000bp around Transcription start site
-#    2) Coverage in smaller region around TSS (-150;+50); corrected by mean coverage of +/-1000bp around TSS
+#    2) Coverage in smaller region around TSS (-150;+50)
 # normalized by LOG2-ratios
 
 #Merged Controls
@@ -245,6 +246,9 @@ output/PredictActiveGenes_LOG2_norm/MergedControls/MergedControls_TSSCoverage_Sm
 	./scripts/analyze_all_genes_by_TSS_coverage_norm_LOG2.py -s 150 -e 50 -rg ./ref/refSeq_extended_names_strand.bed -b ./output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam \
     -t 10 -gl ./ref/Plasma-RNASeq/AllGenes_NMonly.txt -norm -norm-file ./data/MergedControls_Random/MergedControls_Random.segments \
     > output/PredictActiveGenes_LOG2_norm/MergedControls/MergedControls_TSSCoverage_Small_PlasmaRNASeq_NMonly_NormLog2.txt
+prediction_merged_controls:
+	cd output/PredictActiveGenes_LOG2_norm/B7_1/SVM/;R --no-save < prediction_svm_Housekeeping.R
+
 output/PredictActiveGenes_LOG2_norm/B7_1/B7_TSSCoverage_Broad_PlasmaRNASeq_NMonly_NormLog2.txt:
 	./scripts/analyze_all_genes_by_TSS_coverage_norm_LOG2.py -rg ./ref/refSeq_extended_names_strand.bed -b ./output/trimmed_reads/B7_1_rmdup_trimmed.bam \
     -t 10 -gl ./ref/Plasma-RNASeq/AllGenes_NMonly.txt -norm -norm-file ./data/B7_1_PlasmaSeq/B7_1_R1_L1/B7_1_R1_L1.segments \
@@ -253,6 +257,9 @@ output/PredictActiveGenes_LOG2_norm/B7_1/B7_TSSCoverage_Small_PlasmaRNASeq_NMonl
 	./scripts/analyze_all_genes_by_TSS_coverage_norm_LOG2.py -s 150 -e 50 -rg ./ref/refSeq_extended_names_strand.bed -b ./output/trimmed_reads/B7_1_rmdup_trimmed.bam \
     -t 10 -gl ./ref/Plasma-RNASeq/AllGenes_NMonly.txt -norm -norm-file ./data/B7_1_PlasmaSeq/B7_1_R1_L1/B7_1_R1_L1.segments \
     > output/PredictActiveGenes_LOG2_norm/B7_1/B7_TSSCoverage_Small_PlasmaRNASeq_NMonly_NormLog2.txt
+prediction_b7_1:
+	cd output/PredictActiveGenes_LOG2_norm/B7_1/SVM/;R --no-save < prediction_svm_Housekeeping.R
+
 output/PredictActiveGenes_LOG2_norm/B13_1/B13_TSSCoverage_Broad_PlasmaRNASeq_NMonly_NormLog2.txt:
 	./scripts/analyze_all_genes_by_TSS_coverage_norm_LOG2.py -rg ./ref/refSeq_extended_names_strand.bed -b ./output/trimmed_reads/B13_1_rmdup_trimmed.bam \
     -t 10 -gl ./ref/Plasma-RNASeq/AllGenes_NMonly.txt -norm -norm-file ./data/B13_1_Plasma-Seq/B13_1_L1/B13_1_L1.segments \
@@ -261,11 +268,14 @@ output/PredictActiveGenes_LOG2_norm/B13_1/B13_TSSCoverage_Small_PlasmaRNASeq_NMo
 	./scripts/analyze_all_genes_by_TSS_coverage_norm_LOG2.py -s 150 -e 50 -rg ./ref/refSeq_extended_names_strand.bed -b ./output/trimmed_reads/B13_1_rmdup_trimmed.bam \
     -t 10 -gl ./ref/Plasma-RNASeq/AllGenes_NMonly.txt -norm -norm-file ./data/B13_1_Plasma-Seq/B13_1_L1/B13_1_L1.segments \
     > output/PredictActiveGenes_LOG2_norm/B13_1/B13_TSSCoverage_Small_PlasmaRNASeq_NMonly_NormLog2.txt
+prediction_b7_1:
+	cd output/PredictActiveGenes_LOG2_norm/B7_1/SVM/;R --no-save < prediction_svm_Housekeeping.R
 
 
 ####################################################################################################################################
 #
-# Create wig file for ordered array at Gaffney site: Hg19:chr12:34,484,733-34,560,733 
+# 6 Create wig file for ordered array at Gaffney site: Hg19:chr12:34,484,733-34,560,733 
+#
 output/Gaffney_nucleosome_array/MergedControls_Gaffney_site.counts:
 	./scripts/single_region_wig_from_bam.py -chr chr12 -s 34484000 -e 34561000 -b output/trimmed_reads/Merged_Controls_rmdup_trimmed.bam -w output/Gaffney_nucleosome_array/MergedControls_Gaffney_site.wig
 	./scripts/wiggleToCounts.py -w output/Gaffney_nucleosome_array/MergedControls_Gaffney_site.wig -o output/Gaffney_nucleosome_array/MergedControls_Gaffney_site.counts -s 34484733 -e 34560733
@@ -278,7 +288,7 @@ output/Gaffney_nucleosome_array/B7_Gaffney_site.counts:
 
 ####################################################################################################################################
 #
-# Analyze Top 1000 vs Bottom 1000 expressed genes in BigWig files
+# 7 Analyze Top 1000 vs Bottom 1000 expressed genes in BigWig files
 #
 output/TSS_coverage/BigWig/GM12878_Top1000_tss.txt:
 	./scripts/analyze_TSS_coverage_fromBigWig.py -t 10 -bw ref/wgEncodeSydhNsomeGm12878Sig.bigWig -gl ref/Plasma-RNASeq/Top1000_NMonly.txt -rg ref/refSeq_extended_names_strand.bed > output/TSS_coverage/BigWig/GM12878_Top1000_tss.txt
