@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+
+"""Taken from https://github.com/chapmanb/bcbb/blob/master/nextgen/scripts/bam_to_wiggle.py
+   by Brad Chapman"""
+
 """Convert BAM files to BigWig file format in a specified region.
 
 Usage:
