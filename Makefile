@@ -268,8 +268,8 @@ output/PredictActiveGenes_LOG2_norm/B13_1/B13_TSSCoverage_Small_PlasmaRNASeq_NMo
 	./scripts/analyze_all_genes_by_TSS_coverage_norm_LOG2.py -s 150 -e 50 -rg ./ref/refSeq_extended_names_strand.bed -b ./output/trimmed_reads/B13_1_rmdup_trimmed.bam \
     -t 10 -gl ./ref/Plasma-RNASeq/AllGenes_NMonly.txt -norm -norm-file ./data/B13_1_Plasma-Seq/B13_1_L1/B13_1_L1.segments \
     > output/PredictActiveGenes_LOG2_norm/B13_1/B13_TSSCoverage_Small_PlasmaRNASeq_NMonly_NormLog2.txt
-prediction_b7_1:
-	cd output/PredictActiveGenes_LOG2_norm/B7_1/SVM/;R --no-save < prediction_svm_Housekeeping.R
+prediction_b13_1:
+	cd output/PredictActiveGenes_LOG2_norm/B13_1/SVM/;R --no-save < prediction_svm_Housekeeping.R
 
 
 ####################################################################################################################################

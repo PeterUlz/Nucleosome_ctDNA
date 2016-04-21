@@ -5,7 +5,7 @@
 # .) samtools v0.1.18(r982:295); samtools is also called from within Python scripts using subprocess.call
 # .) BWA (0.7.4-r385)
 # .) R (2.14.1)
-# .) Picard (picard-tools-1.128)
+# .) Picard (picard-tools-1.128) (Here: ~/Software/SNP_calling/picard-tools-1.128/picard.jar)
 # .) Java (Java 7)
 # .) Python (2.7.3)
 # .) zcat/wget
