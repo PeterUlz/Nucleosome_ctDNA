@@ -13,15 +13,16 @@ signature of hematopoietic cells. In cancer patients with metastatic disease, we
 of the matching primary tumor. 
 Our analyses provide functional information about the cells releasing their DNA into the circulation.  
 
-Preprint can be found [here](http://biorxiv.org/content/early/2016/04/20/049478/ "BioRXiv Preprint")  
+A preprint can be found on [bioRxiv](http://biorxiv.org/content/early/2016/04/20/049478/ "bioRxiv Preprint")  
 
-This is a collection of scripts which were used to analyse whole-genome sequencing of non-cancer controls
-as well as tumor samples.
+This is a collection of scripts which were used to analyse whole-genome sequencing data of non-cancer controls
+as well as two breast cancer samples.
 
 * Alignment and read trimming
+* Coverage at chromosome 12 nucleosome array
 * Average coverage around Transcription start sites
 * Expression prediction based on two features derived from the average coverage analysis
-    * Coverage from -1000bp to +1000bp from TSS (2K-TSS)
+    * Coverage from -1000bp to +1000bp from TSS (2K-TSS Coverage)
     * Coverage from -150bp to +50bp from TSS (NDR Coverage)
 
 
