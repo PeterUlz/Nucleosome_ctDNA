@@ -1,0 +1,81 @@
+#! /usr/bin/python
+
+import numpy
+
+input_file="MergedControls_FPKM.txt"
+INFILE = open(input_file,"r")
+header = INFILE.readline()
+
+output_file="MergedControls_Means.txt"
+OUTPUT=open(output_file,"w")
+
+fpkm_2K = dict()
+fpkm_NDR = dict()
+
+fpkm_2K["0_1"] = list()
+fpkm_2K["1_2"] = list()
+fpkm_2K["2_3"] = list()
+fpkm_2K["3_4"] = list()
+fpkm_2K["4_5"] = list()
+fpkm_2K["5_6"] = list()
+fpkm_2K["6_7"] = list()
+fpkm_2K["7_8"] = list()
+fpkm_2K["8_9"] = list()
+fpkm_2K["9_10"] = list()
+fpkm_2K[">10"] = list()
+
+fpkm_NDR["0_1"] = list()
+fpkm_NDR["1_2"] = list()
+fpkm_NDR["2_3"] = list()
+fpkm_NDR["3_4"] = list()
+fpkm_NDR["4_5"] = list()
+fpkm_NDR["5_6"] = list()
+fpkm_NDR["6_7"] = list()
+fpkm_NDR["7_8"] = list()
+fpkm_NDR["8_9"] = list()
+fpkm_NDR["9_10"] = list()
+fpkm_NDR[">10"] = list()
+
+for line in INFILE.readlines():
+   info = line.rstrip().split("\t")
+   fpkm = float(info[4])
+   if fpkm < 1:
+       fpkm_2K["0_1"].append(float(info[2]))
+       fpkm_NDR["0_1"].append(float(info[3]))
+   elif fpkm > 1 and fpkm < 2:
+       fpkm_2K["1_2"].append(float(info[2]))
+       fpkm_NDR["1_2"].append(float(info[3]))
+   elif fpkm > 2 and fpkm < 3:
+       fpkm_2K["2_3"].append(float(info[2]))
+       fpkm_NDR["2_3"].append(float(info[3]))
+   elif fpkm > 3 and fpkm < 4:
+       fpkm_2K["3_4"].append(float(info[2]))
+       fpkm_NDR["3_4"].append(float(info[3]))
+   elif fpkm > 4 and fpkm < 5:
+       fpkm_2K["4_5"].append(float(info[2]))
+       fpkm_NDR["4_5"].append(float(info[3]))
+   elif fpkm > 5 and fpkm < 6:
+       fpkm_2K["5_6"].append(float(info[2]))
+       fpkm_NDR["5_6"].append(float(info[3]))
+   elif fpkm > 6 and fpkm < 7:
+       fpkm_2K["6_7"].append(float(info[2]))
+       fpkm_NDR["6_7"].append(float(info[3]))
+   elif fpkm > 7 and fpkm < 8:
+       fpkm_2K["7_8"].append(float(info[2]))
+       fpkm_NDR["7_8"].append(float(info[3]))
+   elif fpkm > 8 and fpkm < 9:
+       fpkm_2K["8_9"].append(float(info[2]))
+       fpkm_NDR["8_9"].append(float(info[3]))
+   elif fpkm > 9 and fpkm < 10:
+       fpkm_2K["9_10"].append(float(info[2]))
+       fpkm_NDR["9_10"].append(float(info[3]))
+   elif fpkm > 10:
+       fpkm_2K[">10"].append(float(info[2]))
+       fpkm_NDR[">10"].append(float(info[3]))
+   else:
+       continue
+
+OUTPUT.write("FPKM\t2K\tNDR\n")
+for key in fpkm_2K.keys():
+    OUTPUT.write(key+"\t"+str(numpy.mean(fpkm_2K[key]))+"\t"+str(numpy.mean(fpkm_NDR[key]))+"\n")
+OUTPUT.close()

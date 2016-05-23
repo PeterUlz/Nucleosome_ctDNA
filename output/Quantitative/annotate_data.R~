@@ -1,0 +1,27 @@
+controls_broad<-read.csv("MergedControls_TSSCoverage_Broad_PlasmaRNASeq_NMonly_NormLog2.txt",header=TRUE,sep="\t",stringsAsFactors=FALSE)
+controls_small<-read.csv("MergedControls_TSSCoverage_Small_PlasmaRNASeq_NMonly_NormLog2.txt",header=TRUE,sep="\t")
+
+data<-data.frame(Gene=controls_broad$Gene,TSS=controls_broad$TSS,TwoK_TSS=controls_broad$Coverage,NDR=controls_small$Coverage)
+data$fpkm<-rep(0,length(data$Gene))
+fpkm_values<-read.csv("filtered.merged.genes.fpkm_tracking",header=TRUE,sep="\t")
+for (gene in fpkm_values$tracking_id) {
+	index<-which(data$Gene == gene)
+	fpkm_index<-which(fpkm_values$tracking_id == gene)
+	if (length(index) == 0) {
+	    next
+	}
+	if (length(fpkm_index) == 1) {
+	    fpkm_value <- fpkm_values$Mean.FPKM[fpkm_index]
+	}
+	else  {
+	    fpkm_value <- mean(fpkm_values$Mean.FPKM[fpkm_index])
+	}
+	    data$fpkm[index] <- rep(fpkm_value,length(index))
+}
+
+
+write.table(t(c("Gene", "TSS","2K-Distance","NDR Distance")), file="MergedControls_FPKM.txt", quote=FALSE, row.names=FALSE, col.names=FALSE, sep="\t" )
+for (y in 1:nrow(data)) {
+   write.table(t(c(controls_broad$Gene[y], controls_broad$TSS[y], toString(data$TwoK_TSS[y]), toString(data$NDR[y]),toString(data$fpkm[y]))), file="MergedControls_FPKM.txt", quote=FALSE, row.names=FALSE, col.names=FALSE,append=TRUE, sep="\t")
+}
+

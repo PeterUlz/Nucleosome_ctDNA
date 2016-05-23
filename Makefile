@@ -24,7 +24,7 @@ tss_plots: output/TSS_coverage/Normalized/MergedControls_Plasma_Top1000_tss.txt 
            output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_between1_8_tss.txt output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_between0.1_1_tss.txt \
            output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_under0.1_tss.txt
 
-
+quantitative: output/Quantitative/MergedControls_FPKM.txt output/Quantitative/MergedControls_FPKM_binned.txt output/Quantitative/TotalMeansZoomQuintiles.pdf
 
 
 # Download ENCODE Nucleosome tracks
@@ -297,3 +297,14 @@ output/TSS_coverage/BigWig/GM12878_Bottom1000_tss.txt:
 	./scripts/analyze_TSS_coverage_fromBigWig.py -t 10 -bw ref/wgEncodeSydhNsomeGm12878Sig.bigWig -gl ref/Plasma-RNASeq/Bottom1000_NMonly.txt -rg ref/refSeq_extended_names_strand.bed > output/TSS_coverage/BigWig/GM12878_Bottom1000_tss.txt
 	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/BigWig/GM12878_Bottom1000_tss.txt
 
+
+####################################################################################################################################
+#
+# 8 Quantitative analysis
+#
+output/Quantitative/MergedControls_FPKM.txt:
+	R --no-save < ./scripts/annotate_parameters_with_FPKM.R
+output/Quantitative/MergedControls_FPKM_binned.txt:
+	./scripts/binning_fpkm.py
+output/Quantitative/TotalMeansZoomQuintiles.pdf:
+	R --no-save < ./scripts/plot_and_analyze_quantitative.R

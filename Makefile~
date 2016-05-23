@@ -3,7 +3,7 @@
 #external programs (should be in path):
 
 # .) samtools v0.1.18(r982:295); samtools is also called from within Python scripts using subprocess.call
-# .) BWA (0.7.9)
+# .) BWA (0.7.4-r385)
 # .) R (2.14.1)
 # .) Picard (picard-tools-1.128) (Here: ~/Software/SNP_calling/picard-tools-1.128/picard.jar)
 # .) Java (Java 7)
@@ -24,7 +24,7 @@ tss_plots: output/TSS_coverage/Normalized/MergedControls_Plasma_Top1000_tss.txt 
            output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_between1_8_tss.txt output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_between0.1_1_tss.txt \
            output/TSS_coverage/FPKM_Plasma_RNASeq/MergedControls_Plasma_FPKM_under0.1_tss.txt
 
-
+quantitative: output/Quantitative/MergedControls_FPKM.txt
 
 
 # Download ENCODE Nucleosome tracks
@@ -297,3 +297,14 @@ output/TSS_coverage/BigWig/GM12878_Bottom1000_tss.txt:
 	./scripts/analyze_TSS_coverage_fromBigWig.py -t 10 -bw ref/wgEncodeSydhNsomeGm12878Sig.bigWig -gl ref/Plasma-RNASeq/Bottom1000_NMonly.txt -rg ref/refSeq_extended_names_strand.bed > output/TSS_coverage/BigWig/GM12878_Bottom1000_tss.txt
 	cat scripts/create_TSS_plot.R | R --slave --args output/TSS_coverage/BigWig/GM12878_Bottom1000_tss.txt
 
+
+####################################################################################################################################
+#
+# 8 Quantitative analysis
+#
+output/Quantitative/MergedControls_FPKM.txt:
+	R --no-save < ./scripts/annotate_parameters_with_FPKM.R
+output/Quantitative/MergedControls_FPKM_binned.txt:
+	./scripts/binning_fpkm.py
+output/Quantitative/TotalMeansZoomQuintiles.pdf:
+	R --no-save < ./scripts/plot_and_analyze_quantitative.R
